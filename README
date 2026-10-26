@@ -171,25 +171,31 @@ flawless builds on all targets without manual intervention.
 The group collaborated using git for version control and code review.
 Work was partitioned cleanly across three functional areas:
 
-* Member 1 (Networking, CLI, Daemonization, Process Model):
-  - Designed the command-line interface in sws.c using getopt(3).
+* Nguyen Trong Hieu (Team Lead - Architecture, Daemonization, CLI, Compat):
+  - Designed the overall software architecture and common header sws.h.
+  - Implemented the command-line interface in sws.c using getopt(3).
   - Implemented the Stevens APUE daemonization sequence and signal handling.
-  - Authored net.c and net.h for dual-stack IPv4/IPv6 socket binding.
+  - Authored compat.c and compat.h providing strlcpy, strlcat, getprogname,
+    setprogname, and timegm portability shims.
   - Implemented concurrent connection dispatching and worker process lifecycle.
+  - Contribution: 33.33%
 
-* Member 2 (HTTP Protocol Engine, RFC 1945, Logging):
+* Huynh Ngoc Duy (HTTP Protocol Engine, Dual-Stack Sockets, Logging):
+  - Authored net.c and net.h for dual-stack IPv4/IPv6 socket binding.
   - Authored http.c and http.h for RFC 1945 request parsing and response creation.
   - Implemented method parsing, HTTP/1.1 downgrade, and Simple-Request detection.
   - Developed date formatting and parsing for If-Modified-Since validation.
   - Created log.c and log.h implementing the Apache Common Log variation.
+  - Contribution: 33.33%
 
-* Member 3 (Filesystem, Directory Indexing, CGI RFC 3875, Portability):
+* Tran Thi Ngoc Anh (Filesystem, Sandbox Security, libmagic, CGI, QA & Testing):
   - Authored file.c and file.h for path sanitization and directory traversal defense.
   - Integrated libmagic for RFC-compliant Content-Type header resolution.
   - Built directory indexing (alphanumeric sorting, dotfile filtering).
   - Implemented user directory translation (/~user/ -> ~user/sws/).
   - Authored cgi.c and cgi.h implementing RFC 3875 CGI execution and pipes.
-  - Authored compat.c, compat.h, and portable Makefile configuration.
+  - Authored automated test suite test.sh and UNIX manual page sws.1.
+  - Contribution: 33.34%
 
 
 8. PROBLEMS OVERCOME AND LESSONS LEARNED
