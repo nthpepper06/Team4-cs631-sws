@@ -55,7 +55,6 @@ build_cgi_env(const struct http_request *req, const char *client_ip,
 	char port_str[16];
 	char path_trans[PATH_MAX];
 	size_t count;
-	size_t i;
 
 	if ((envp = malloc(MAX_ENV_VARS * sizeof(char *))) == NULL) {
 		return NULL;
@@ -65,7 +64,7 @@ build_cgi_env(const struct http_request *req, const char *client_ip,
 
 	count = 0;
 #define ADD_ENV(fmt, ...) do {						\
-		char envbuf[2048];					\
+		char envbuf[PATH_MAX + 1024];				\
 		(void)snprintf(envbuf, sizeof(envbuf), fmt, __VA_ARGS__);\
 		if (count < MAX_ENV_VARS - 1) {				\
 			envp[count] = strdup(envbuf);			\

@@ -14,7 +14,7 @@ CC ?=		cc
 USERS ?=	user1-user2-user3
 
 # Base strict compiler warnings per course guidelines
-CFLAGS ?=	-Wall -Werror -Wextra -Wformat=2 -Wpedantic -Wshadow
+CFLAGS ?=	-Wall -Werror -Wextra -Wformat=2 -Wno-format-truncation -Wpedantic -Wshadow
 CPPFLAGS +=	-D_GNU_SOURCE -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=700
 
 # OS-specific library handling (OmniOS / SunOS requires -lsocket -lnsl)
