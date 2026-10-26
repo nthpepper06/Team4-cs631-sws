@@ -171,7 +171,17 @@ flawless builds on all targets without manual intervention.
 The group collaborated using git for version control and code review.
 Work was partitioned cleanly across three functional areas:
 
-* Nguyen Trong Hieu (Team Lead - Architecture, Daemonization, CLI, Compat):
+* Tran Thi Ngoc Anh (Team Lead - Filesystem, Sandbox, libmagic, CGI, QA):
+  - Directed project workflow, task coordination, and milestone reviews.
+  - Authored file.c and file.h for path sanitization and directory traversal defense.
+  - Integrated libmagic for RFC-compliant Content-Type header resolution.
+  - Built directory indexing (alphanumeric sorting, dotfile filtering).
+  - Implemented user directory translation (/~user/ -> ~user/sws/).
+  - Authored cgi.c and cgi.h implementing RFC 3875 CGI execution and pipes.
+  - Authored automated test suite test.sh and UNIX manual page sws.1.
+  - Contribution: 33.34%
+
+* Nguyen Trong Hieu (Core Architecture, Daemonization, CLI, Signals, Compat):
   - Designed the overall software architecture and common header sws.h.
   - Implemented the command-line interface in sws.c using getopt(3).
   - Implemented the Stevens APUE daemonization sequence and signal handling.
@@ -187,15 +197,6 @@ Work was partitioned cleanly across three functional areas:
   - Developed date formatting and parsing for If-Modified-Since validation.
   - Created log.c and log.h implementing the Apache Common Log variation.
   - Contribution: 33.33%
-
-* Tran Thi Ngoc Anh (Filesystem, Sandbox Security, libmagic, CGI, QA & Testing):
-  - Authored file.c and file.h for path sanitization and directory traversal defense.
-  - Integrated libmagic for RFC-compliant Content-Type header resolution.
-  - Built directory indexing (alphanumeric sorting, dotfile filtering).
-  - Implemented user directory translation (/~user/ -> ~user/sws/).
-  - Authored cgi.c and cgi.h implementing RFC 3875 CGI execution and pipes.
-  - Authored automated test suite test.sh and UNIX manual page sws.1.
-  - Contribution: 33.34%
 
 
 8. PROBLEMS OVERCOME AND LESSONS LEARNED
