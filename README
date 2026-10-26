@@ -1,0 +1,220 @@
+================================================================================
+sws - Simple Web Server (CS631 Advanced Programming in the UNIX Environment)
+================================================================================
+
+1. OVERVIEW
+-----------
+sws is a lightweight, secure HTTP/1.0 web server conforming to RFC 1945 and
+RFC 3875 (Common Gateway Interface v1.1). The server adheres strictly to the
+specifications in the sws(1) manual page and follows the programming practices
+and NetBSD Kernel Normal Form (KNF) style guidelines from Stevens CS631 APUE.
+
+sws operates either as a true background UNIX daemon capable of handling
+multiple concurrent connections via multi-process worker forking, or in
+debugging mode (-d), which retains the process in the foreground, handles
+connections sequentially, and prints request logs directly to stdout.
+
+
+2. ARCHITECTURE AND CODE ORGANIZATION
+-------------------------------------
+The codebase is structured into modular components:
+
+* sws.c / sws.h
+  Main entry point, command-line argument parsing (getopt), daemonization,
+  signal handling (SIGCHLD, SIGPIPE, SIGINT, SIGTERM), and the master connection
+  accept loop.
+
+* net.c / net.h
+  Network socket lifecycle management. Implements dual-stack IPv4/IPv6 socket
+  binding when no -i address is provided (binding to :: with IPV6_V6ONLY and
+  to 0.0.0.0), connection polling via poll(2), socket option configuration
+  (SO_REUSEADDR), and remote peer IP extraction using getnameinfo(3).
+
+* http.c / http.h
+  HTTP protocol engine implementing RFC 1945. Handles request line reading with
+  timeout bounds, method validation (GET and HEAD supported; other methods yield
+  501 Not Implemented), HTTP/1.1 downgrade to HTTP/1.0, HTTP/0.9 Simple-Request
+  detection, case-insensitive parsing of the If-Modified-Since header (RFC 1123,
+  RFC 850, and asctime formats), and structured response generation.
+
+* file.c / file.h
+  Filesystem interaction layer. Implements path traversal mitigation and
+  sandboxing, user directory expansion (/~<user>/ -> ~<user>/sws/), directory
+  index resolution (serving index.html if present, or dynamically generating
+  an alphanumeric HTML directory listing while omitting dotfiles), regular file
+  streaming, and dynamic MIME type identification via libmagic (magic(5)).
+
+* cgi.c / cgi.h
+  CGI/1.1 execution engine implementing RFC 3875. Matches /cgi-bin requests when
+  -c dir is specified, extracts SCRIPT_NAME, PATH_INFO, and QUERY_STRING,
+  verifies execution permissions, constructs the RFC 3875 environment variable
+  table, creates pipes, forks worker processes, enforces execution timeouts,
+  parses CGI headers (including Status:), and streams CGI responses to clients.
+
+* log.c / log.h
+  Logging subsystem implementing the Apache Common Log format variation:
+  '%a %t "%r" %>s %b'. Handles thread-safe atomic appending to log files (-l)
+  or stdout routing in debug mode (-d).
+
+* compat.c / compat.h
+  Cross-platform portability shims providing size-bounded string functions
+  (strlcpy, strlcat), program identification (getprogname, setprogname),
+  and time conversion (timegm) across NetBSD, Linux, and OmniOS.
+
+
+3. PROTOCOL AND FEATURE IMPLEMENTATION
+--------------------------------------
+* HTTP Methods and RFC 1945:
+  sws speaks a restricted dialect of HTTP/1.0. It accepts GET and HEAD methods.
+  Requests with other HTTP methods (POST, PUT, DELETE, OPTIONS, etc.) trigger
+  501 Not Implemented. HTTP/1.1 requests are accepted and quietly answered with
+  HTTP/1.0 response lines. HTTP/0.9 Simple-Requests (e.g., "GET /") return only
+  the entity body without status headers.
+
+* Header Support:
+  sws systematically generates Date, Server, Last-Modified, Content-Type, and
+  Content-Length headers on Full-Responses. For conditional GET requests,
+  sws evaluates the If-Modified-Since request header against the file's
+  st_mtime; if the file has not been modified, a 304 Not Modified response is
+  returned with no message body.
+
+* Content-Type and magic(5):
+  MIME types are determined using libmagic (magic_open(MAGIC_MIME_TYPE),
+  magic_load, and magic_file). If libmagic is unable to identify a file, it
+  gracefully defaults to "application/octet-stream". Dynamically generated
+  directory listings and error responses use "text/html".
+
+* Directory Indexing:
+  When a request targets a directory, sws checks for an "index.html" file.
+  If found, that file is served. If absent, sws inspects the directory using
+  opendir(3) and readdir(3), ignores any entry beginning with a "." (including
+  "." and ".."), sorts remaining entries alphanumerically using qsort(3) and
+  strcmp(3), and renders a clean HTML directory listing with links.
+
+* User Directories:
+  URIs beginning with "/~" trigger user directory translation. The string
+  between "/~" and the subsequent "/" is interpreted as a username and queried
+  via getpwnam(3). If valid, requests resolve into "<pw_dir>/sws/".
+
+* CGI Execution (RFC 3875):
+  If the -c dir option is supplied, requests beginning with "/cgi-bin" resolve
+  scripts relative to the specified CGI directory. The server forks a child
+  process, sets up the full standard CGI environment (REQUEST_METHOD,
+  SCRIPT_NAME, PATH_INFO, PATH_TRANSLATED, QUERY_STRING, REMOTE_ADDR,
+  SERVER_SOFTWARE, GATEWAY_INTERFACE, HTTP_*, etc.), attaches stdout to a pipe,
+  and executes the script. The parent parses the CGI script output for headers
+  and encapsulates the output in a valid HTTP/1.0 response.
+
+* Logging:
+  Enabled via -l file or in debug mode (-d). Conforms to:
+  '%a %t "%r" %>s %b'
+  - %a: Remote IPv4 or IPv6 client address
+  - %t: Request arrival timestamp in GMT (e.g., 2019-10-28T12:12:12Z)
+  - %r: First line of the request in quotes (e.g., "GET / HTTP/1.0")
+  - %>s: HTTP response status code
+  - %b: Response body length in bytes
+
+
+4. CONCURRENCY AND DAEMONIZATION
+--------------------------------
+* Daemon Mode (Default):
+  Unless -d is provided, sws executes a standard Stevens two-step daemonization:
+  forking, calling setsid(2), ignoring SIGHUP, forking a second time to ensure
+  no controlling terminal can be reacquired, changing directory to "/", clearing
+  the umask, and redirecting stdin, stdout, and stderr to /dev/null.
+  Incoming connections are accepted concurrently by forking a child worker
+  process per client. The parent server reaps terminated children
+  asynchronously using a non-blocking waitpid(2) loop within a SIGCHLD handler.
+
+* Debug Mode (-d):
+  When invoked with -d, sws remains in the foreground, handles incoming
+  connections synchronously one at a time, and outputs all access logs to
+  stdout.
+
+
+5. SECURITY MEASURES
+--------------------
+* Path Traversal Prevention:
+  Path inputs undergo canonicalization and verification. The server sanitizes
+  relative segments, eliminates "." and "..", and resolves real paths using
+  realpath(3). If the canonicalized path falls outside the designated docroot,
+  user sws directory, or CGI directory, the request is rejected with 403
+  Forbidden or 404 Not Found.
+
+* Denial of Service & Hanging Script Protection:
+  Socket reads on client connections are bounded by poll(2) timeouts
+  (READ_TIMEOUT_SEC = 30s) to prevent slow-loris connection exhaustion.
+  CGI execution is similarly monitored with poll(2) timeouts; runaway scripts
+  are terminated with SIGKILL if they exceed CGI_TIMEOUT_SEC.
+
+* Signal Safety:
+  SIGPIPE is ignored to prevent process termination when remote clients close
+  TCP connections prematurely during write operations.
+
+
+6. PORTABILITY AND SUPPORTED PLATFORMS
+--------------------------------------
+sws has been verified to compile cleanly with strict compiler flags:
+  CFLAGS = -Wall -Werror -Wextra -Wformat=2 -Wpedantic -Wshadow
+across all three required platforms:
+  1. NetBSD 11.0 (standard reference platform)
+  2. Linux (linux.cs631.dotwtf.wtf)
+  3. OmniOS (omnios.cs631.dotwtf.wtf)
+
+Under OmniOS (illumos/SunOS), the Makefile dynamically detects the OS using
+`uname -s` and automatically appends `-lsocket -lnsl` to LDLIBS, ensuring
+flawless builds on all targets without manual intervention.
+
+
+7. TEAM COLLABORATION AND DIVISION OF WORK
+------------------------------------------
+The group collaborated using git for version control and code review.
+Work was partitioned cleanly across three functional areas:
+
+* Member 1 (Networking, CLI, Daemonization, Process Model):
+  - Designed the command-line interface in sws.c using getopt(3).
+  - Implemented the Stevens APUE daemonization sequence and signal handling.
+  - Authored net.c and net.h for dual-stack IPv4/IPv6 socket binding.
+  - Implemented concurrent connection dispatching and worker process lifecycle.
+
+* Member 2 (HTTP Protocol Engine, RFC 1945, Logging):
+  - Authored http.c and http.h for RFC 1945 request parsing and response creation.
+  - Implemented method parsing, HTTP/1.1 downgrade, and Simple-Request detection.
+  - Developed date formatting and parsing for If-Modified-Since validation.
+  - Created log.c and log.h implementing the Apache Common Log variation.
+
+* Member 3 (Filesystem, Directory Indexing, CGI RFC 3875, Portability):
+  - Authored file.c and file.h for path sanitization and directory traversal defense.
+  - Integrated libmagic for RFC-compliant Content-Type header resolution.
+  - Built directory indexing (alphanumeric sorting, dotfile filtering).
+  - Implemented user directory translation (/~user/ -> ~user/sws/).
+  - Authored cgi.c and cgi.h implementing RFC 3875 CGI execution and pipes.
+  - Authored compat.c, compat.h, and portable Makefile configuration.
+
+
+8. PROBLEMS OVERCOME AND LESSONS LEARNED
+----------------------------------------
+* Dual-Stack Socket Binding:
+  On NetBSD, IPv6 sockets have IPV6_V6ONLY enabled by default, whereas on some
+  Linux distributions it defaults to disabled. To ensure consistent behavior
+  across NetBSD, Linux, and OmniOS, we explicitly configure IPV6_V6ONLY on the
+  IPv6 socket and maintain a separate IPv4 socket. poll(2) monitors both
+  listening sockets seamlessly.
+
+* Path Sandboxing and Relative Paths:
+  When a program daemonizes and executes chdir("/"), relative paths provided on
+  the command line (such as docroot, -c dir, or -l file) can become invalid.
+  We solved this by resolving all relative paths to absolute canonical paths
+  using realpath(3) and getcwd(3) before calling daemonize().
+
+* Zombie Child Reaping:
+  When using fork(2) for concurrency, child processes become zombies if not
+  reaped. Installing a SIGCHLD handler with SA_RESTART and looping over
+  waitpid(-1, NULL, WNOHANG) guarantees that all terminated workers are reaped
+  without blocking or interrupting active system calls.
+
+
+9. TIME ESTIMATE
+----------------
+Approximately 45 hours of combined team effort.
+================================================================================

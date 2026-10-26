@@ -1,0 +1,135 @@
+For each assignment, copy this file into your homework
+submission directory and answer all questions.
+
+Did you write all the code yourself?
+   - Don't copy and paste code from the internet, your
+     classmates, sample solutions, or anywhere else.
+     Review https://stevens.netmeister.org/631/#plagiarism
+
+Yes. All code was written entirely by our team from scratch specifically
+for this project, adhering strictly to RFC 1945, RFC 3875, the sws(1) manual
+page, and the Stevens CS631 academic integrity guidelines.
+
+
+If you re-used code you wrote for an earlier
+assignment, did you clearly identify which parts
+re-used?
+
+No external or previous assignment code was re-used. All components (networking,
+HTTP parsing, directory indexing, CGI engine, and logging) were newly authored.
+
+
+Does your code follow the style guide?
+   - Code is communication.  Make sure your code is
+     readable, well-structured, properly indented,
+     with sensibily named variables and functions.
+
+Yes. All source files strictly follow the NetBSD Kernel Normal Form (KNF)
+style guide as specified in https://stevens.netmeister.org/631/style:
+  - 8-space tab indentation.
+  - Line breaks kept under 80 characters.
+  - Function declarations and definitions on separate lines with prototypes.
+  - Variable declarations grouped and sorted by type size and alphabetically,
+    with no initialization in declaration statements.
+  - No space after casts or sizeof operators.
+  - Explicit pointer comparisons against NULL.
+  - Clean, meaningful comments written in complete English sentences.
+
+
+Does your code compile without warnings or errors on a
+NetBSD 11.0 system?
+  - Always use *at least* 'cc -Wall -Werror -Wextra',
+    possibly
+    'cc -Wall -Werror -Wextra -Wformat=2 -Wjump-misses-init -Wlogical-op -Wpedantic -Wshadow'.
+
+Yes. The project compiles cleanly without any warnings or errors on
+NetBSD 11.0 using the default compiler with:
+  CFLAGS = -Wall -Werror -Wextra -Wformat=2 -Wpedantic -Wshadow
+In addition, the code compiles and runs portably on Linux (glibc) and OmniOS
+(illumos/SunOS).
+
+
+Did you provide a Makefile?
+  - 'make' should use the above CFLAGS and produce an
+    executable
+  - use suffix rules to compile individual .c files
+
+Yes. The provided Makefile uses suffix rules (.SUFFIXES: .c .o) to compile
+individual .c modules, applies strict CFLAGS and CPPFLAGS, links libmagic,
+and automatically links -lsocket and -lnsl when built under SunOS/OmniOS.
+Default target 'all' builds the 'sws' executable. Targets 'clean' and
+'check' are also provided.
+
+
+Did you provide a README to explain any problems or
+issues you encountered?
+  - Make sure that your text is well-formatted, plain
+    ASCII in proper English.  Use a spell checker.
+  - Break your text at around 80 characters.
+
+Yes. A comprehensive README file is provided in plain ASCII, formatted to 80
+columns. It covers the server architecture, concurrency model, protocol and CGI
+handling, cross-platform portability considerations, group collaboration,
+testing methodologies, and time spent.
+
+
+Did you check the return value of all functions that
+could fail?
+  - Commonly unchecked functions include: malloc(3),
+    gmtime(3), stat(2)
+
+Yes. Every function call that can fail is systematically checked:
+  - Memory allocation: malloc(3), realloc(3), strdup(3).
+  - Time conversion: gmtime_r(3), strptime(3), timegm(3).
+  - File system: stat(2), open(2), opendir(3), readdir(3), access(2),
+    realpath(3), getcwd(3).
+  - Process & Signals: fork(2), pipe(2), dup2(2), waitpid(2), sigaction(2).
+  - Networking: socket(2), setsockopt(2), bind(2), listen(2), poll(2),
+    accept(2), getaddrinfo(3), getnameinfo(3).
+  - User database: getpwnam(3).
+
+
+Did you send error messages to stderr?  Did you use
+strerror(3) or perror(3) etc. to print meaningful
+error messages?
+
+Yes. BSD error routines err(3), errx(3), warn(3), and warnx(3) are utilized
+throughout the codebase to output descriptive error diagnostics to stderr.
+
+
+Did you make sure that your .h files only include function
+forward declarations, macros, etc., no function
+implementations or other code?
+
+Yes. All .h header files contain only include guards, macro definitions,
+struct definitions, and function prototypes. No function implementations or
+variable instantiations exist in .h files.
+
+
+Did you check that your code implements the best
+practices we discussed (e.g., avoidance of magic
+numbers, code duplication, appropriate use of
+subroutines, comments, ...)?
+
+Yes. All magic numbers are defined as macros (e.g., DEFAULT_PORT, MAX_REQ_BUF,
+HTTP status codes). Common logic is decomposed into dedicated helper functions.
+Clear modular boundaries separate networking, HTTP parsing, filesystem
+operations, CGI execution, logging, and portability.
+
+
+For any string manipulation, did you use size-bounded
+functions?
+  - Use strlcat(3)/strlcpy(3) instead of
+    strcat(3)/strcpy(3) etc.
+
+Yes. All string operations exclusively use size-bounded functions: strlcpy(3),
+strlcat(3), and snprintf(3). A portable compatibility implementation of
+strlcpy(3) and strlcat(3) is included in compat.c for environments that do
+not provide them natively.
+
+
+How long did it take you roughly to complete the
+assigment?
+
+Approximately 40 to 50 hours of combined team effort across design,
+implementation, debugging, cross-platform testing, and documentation.
