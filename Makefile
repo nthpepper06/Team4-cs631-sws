@@ -5,9 +5,13 @@
 
 PROG =		sws
 SRCS =		cgi.c compat.c file.c http.c log.c net.c sws.c
+HDRS =		cgi.h compat.h file.h http.h log.h net.h sws.h
 OBJS =		$(SRCS:.c=.o)
+DOCS =		Makefile README checklist sws.1 test.sh
+DISTFILES =	$(SRCS) $(HDRS) $(DOCS)
 
 CC ?=		cc
+USERS ?=	user1-user2-user3
 
 # Base strict compiler warnings per course guidelines
 CFLAGS ?=	-Wall -Werror -Wextra -Wformat=2 -Wpedantic -Wshadow
@@ -30,10 +34,21 @@ $(PROG): $(OBJS)
 
 clean:
 	rm -f $(PROG) $(OBJS) *.core core *~
+	rm -rf $(USERS) $(USERS).tar
 
 check:
 	@echo "All source files: $(SRCS)"
 	@echo "Compiler: $(CC)"
 	@echo "CFLAGS: $(CFLAGS)"
 
-.PHONY: all clean check
+dist: clean
+	mkdir -p $(USERS)
+	cp -p $(DISTFILES) $(USERS)/
+	git log > $(USERS)/git-log.txt 2>/dev/null || true
+	tar -cf $(USERS).tar $(USERS)
+	rm -rf $(USERS)
+	@echo "Created $(USERS).tar extracting into $(USERS)/"
+
+tar: dist
+
+.PHONY: all clean check dist tar
